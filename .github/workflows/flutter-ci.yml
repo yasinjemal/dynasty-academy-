@@ -21,87 +21,67 @@ jobs:
       - run: flutter test --coverage
 
   # 2) Android emulator + integration tests
-  android-emulator:
-    needs: analyze-and-test
-    runs-on: ubuntu-latest
+   android-emulator:
+    name: 🤖 android-emulator
+    needs: analyze‑and‑test
+    runs‑on: ubuntu‑latest
     steps:
       - uses: actions/checkout@v3
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           channel: stable
       - run: flutter pub get
-      - name: Start Android emulator
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 31
-          arch: x86_64
-          target: google_apis
-          emulator-options: -no-window -gpu swiftshader_indirect
-      - run: adb wait-for-device
-      - run: flutter drive \
-            --driver=test_driver/integration_test.dart \
-            --target=integration_test/app_test.dart
+      - run: |
+          # install a system image & start emulator
+          sudo apt-get update && sudo apt-get install -y libglu1-mesa
+          echo "no" | avdmanager create avd -n test -k "system-images;android-30;google_apis;x86"
+          emulator -avd test -no-window -no-audio &
+          flutter emulators --launch test
+      - run: flutter drive --driver=test_driver/integration_test.dart --target=integration_test/app_test.dart
 
-  # 3) iOS simulator + integration tests
   ios-simulator:
-    needs: analyze-and-test
-    runs-on: macos-latest
+    name: 🍎 ios-simulator
+    needs: analyze‑and‑test
+    runs‑on: macos‑latest
     steps:
       - uses: actions/checkout@v3
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           channel: stable
       - run: flutter pub get
-      - name: Boot iPhone Simulator
-        run: |
-          SIM_ID=$(xcrun simctl list devices | grep "iPhone 14" | grep -v unavailable | head -n1 | sed -E 's/.*\(([A-F0-9-]+)\).*/\1/')
-          xcrun simctl boot "$SIM_ID"
-          xcrun simctl status_bar "$SIM_ID" override --time "9:41" --batteryState charged --batteryLevel 100
-      - run: flutter drive \
-            --driver=test_driver/integration_test.dart \
-            --target=integration_test/app_test.dart \
-            -d "$SIM_ID"
+      - run: |
+          # boot a simulator
+          xcrun simctl boot "iPhone 12"
+          flutter drive --driver=test_driver/integration_test.dart --target=integration_test/app_test.dart
 
-  # 4) Build Android APK
   build-android:
-    needs: analyze-and-test
-    runs-on: ubuntu-latest
+    name: 📦 build‑android
+    needs: analyze‑and‑test
+    runs‑on: ubuntu‑latest
     steps:
       - uses: actions/checkout@v3
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           channel: stable
       - run: flutter pub get
-      - name: Build APK
-        run: flutter build apk --release
-      - name: Upload APK
-        uses: actions/upload-artifact@v3
+      - run: flutter build apk --release
+      - uses: actions/upload-artifact@v3
         with:
           name: android-apk
           path: build/app/outputs/flutter-apk/app-release.apk
 
-  # 5) Build iOS Simulator bundle
   build-ios-simulator:
-    needs: analyze-and-test
-    runs-on: macos-latest
+    name: 📱 build‑ios‑simulator
+    needs: analyze‑and‑test
+    runs‑on: macos‑latest
     steps:
       - uses: actions/checkout@v3
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           channel: stable
       - run: flutter pub get
-      - name: Build iOS for Simulator
-        run: flutter build ios --simulator --no-codesign
-      - name: Package .app
-        run: |
-          cd build/ios/iphonesimulator
-          zip -r Runner.app.zip Runner.app
-      - name: Upload Simulator bundle
-        uses: actions/upload-artifact@v3
+      - run: flutter build ios --simulator --no-codesign
+      - uses: actions/upload-artifact@v3
         with:
           name: ios-simulator-app
-          path: build/ios/iphonesimulator/Runner.app.zip
+          path: build/ios/iphonesimulator/Runner.app
