@@ -2,13 +2,40 @@ name: Flutter CI, Tests & Builds
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
-  # 1) Analyze & unit/widget tests
   analyze-and-test:
+    name: 🛠️ Analyze & Unit/Widget Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Static analysis
+        run: flutter analyze
+
+      - name: Run unit & widget tests
+        run: flutter test --coverage
+
+      # Optional: uncomment to run integration_test
+      #- name: Run integration tests
+      #  run: flutter drive --driver=test_driver/integration_test.dart --target=integration_test/app_test.dart
+
+  android-emulator:
+    name: 🤖 Android Emulator Tests
+    needs: analyze-and-test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -16,72 +43,89 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-      - run: flutter pub get
-      - run: flutter analyze
-      - run: flutter test --coverage
 
-  # 2) Android emulator + integration tests
-   android-emulator:
-    name: 🤖 android-emulator
-    needs: analyze‑and‑test
-    runs‑on: ubuntu‑latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-      - run: flutter pub get
-      - run: |
-          # install a system image & start emulator
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Start Android emulator
+        run: |
           sudo apt-get update && sudo apt-get install -y libglu1-mesa
           echo "no" | avdmanager create avd -n test -k "system-images;android-30;google_apis;x86"
-          emulator -avd test -no-window -no-audio &
+          nohup emulator -avd test -no-window -no-audio &
+
+      - name: Wait for emulator
+        run: |
           flutter emulators --launch test
-      - run: flutter drive --driver=test_driver/integration_test.dart --target=integration_test/app_test.dart
+          flutter emulators --print-supported --launch test
+          sleep 30
+
+      - name: Run integration tests on Android
+        run: flutter drive --driver=test_driver/integration_test.dart --target=integration_test/app_test.dart
 
   ios-simulator:
-    name: 🍎 ios-simulator
-    needs: analyze‑and‑test
-    runs‑on: macos‑latest
+    name: 🍎 iOS Simulator Tests
+    needs: analyze-and-test
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: subosito/flutter-action@v2
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
         with:
           channel: stable
-      - run: flutter pub get
-      - run: |
-          # boot a simulator
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Boot iPhone simulator
+        run: |
           xcrun simctl boot "iPhone 12"
-          flutter drive --driver=test_driver/integration_test.dart --target=integration_test/app_test.dart
+          sleep 15
+
+      - name: Run integration tests on iOS
+        run: flutter drive --driver=test_driver/integration_test.dart --target=integration_test/app_test.dart
 
   build-android:
-    name: 📦 build‑android
-    needs: analyze‑and‑test
-    runs‑on: ubuntu‑latest
+    name: 📦 Build Android APK
+    needs: analyze-and-test
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: subosito/flutter-action@v2
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
         with:
           channel: stable
-      - run: flutter pub get
-      - run: flutter build apk --release
-      - uses: actions/upload-artifact@v3
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v3
         with:
           name: android-apk
           path: build/app/outputs/flutter-apk/app-release.apk
 
   build-ios-simulator:
-    name: 📱 build‑ios‑simulator
-    needs: analyze‑and‑test
-    runs‑on: macos‑latest
+    name: 📱 Build iOS Simulator App
+    needs: analyze-and-test
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: subosito/flutter-action@v2
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
         with:
           channel: stable
-      - run: flutter pub get
-      - run: flutter build ios --simulator --no-codesign
-      - uses: actions/upload-artifact@v3
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build iOS simulator
+        run: flutter build ios --simulator --no-codesign
+
+      - name: Upload iOS simulator artifact
+        uses: actions/upload-artifact@v3
         with:
           name: ios-simulator-app
           path: build/ios/iphonesimulator/Runner.app
