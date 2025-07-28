@@ -1,0 +1,17 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+.pub/
+build/
+.idea/
+.vs/
+*.iml
+
+# Generated files
+pubspec.lock
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db

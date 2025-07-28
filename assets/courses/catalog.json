@@ -1,0 +1,14 @@
+[
+  {
+    "id": "rock_to_diamond",
+    "title": "How to Turn Rock into Diamond",
+    "subtitle": "A DynastyBuilt guide to forging generational strength and brilliance",
+    "path": "assets/courses/rock_to_diamond.json"
+  },
+  {
+    "id": "discipline_spell",
+    "title": "DISCIPLINE SPELL",
+    "subtitle": "Ancient Mind Tricks to Destroy Laziness",
+    "path": "assets/courses/discipline_spell.json"
+  }
+]
